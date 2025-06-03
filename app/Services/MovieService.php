@@ -1,46 +1,39 @@
+<?php
+
 namespace App\Services;
 
-use App\Models\Movie;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Movie;
 
-class MovieService
-{
-    public function create(array $data, $poster = null): Movie
-    {
-        $path = $poster 
-            ? $poster->store('posters', 'public') 
-            : 'posters/default.jpg';
+class MovieService {
+    public function store(array $data): Movie {
+        $posterPath = isset($data['poster'])
+            ? $data['poster']->store('posters', 'public')
+            : 'default.jpg';
 
         $movie = Movie::create([
             'title' => $data['title'],
-            'poster_path' => $path,
-            'is_published' => false,
+            'poster' => $posterPath,
         ]);
 
         $movie->genres()->sync($data['genres']);
 
-        return $movie->load('genres');
+        return $movie;
     }
 
-    public function update($id, array $data, $poster = null): Movie
-    {
-        $movie = Movie::findOrFail($id);
-
-        if (isset($data['title'])) {
-            $movie->title = $data['title'];
+    public function update(Movie $movie, array $data): Movie {
+        if (isset($data['poster'])) {
+            if ($movie->poster && $movie->poster !== 'default.jpg') {
+                Storage::disk('public')->delete($movie->poster);
+            }
+            $data['poster'] = $data['poster']->store('posters', 'public');
         }
 
-        if ($poster) {
-            $path = $poster->store('posters', 'public');
-            $movie->poster_path = $path;
-        }
-
-        $movie->save();
-
+        $movie->update($data);
         if (isset($data['genres'])) {
             $movie->genres()->sync($data['genres']);
         }
 
-        return $movie->load('genres');
+        return $movie;
     }
 }

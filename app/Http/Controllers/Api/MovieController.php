@@ -1,48 +1,42 @@
+<?php
+
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreMovieRequest;
 use App\Http\Requests\UpdateMovieRequest;
-use App\Models\Movie;
+use App\Http\Requests\StoreMovieRequest;
+use App\Http\Controllers\Controller;
 use App\Services\MovieService;
-use Illuminate\Http\Request;
+use App\Models\Movie;
 
-class MovieController extends Controller
-{
-    public function index()
-    {
-        return Movie::with('genres')
-            ->paginate(10);
+class MovieController extends Controller {
+    public function __construct(protected MovieService $service) {}
+
+    public function index() {
+        return response()->json(Movie::with('genres')->paginate(10));
     }
 
-    public function show($id)
-    {
-        return Movie::with('genres')->findOrFail($id);
+    public function show($id) {
+        return response()->json(Movie::with('genres')->findOrFail($id));
     }
 
-    public function store(StoreMovieRequest $request, MovieService $service)
-    {
-        $movie = $service->create($request->validated(), $request->file('poster'));
-        return response()->json($movie, 201);
+    public function store(StoreMovieRequest $request) {
+        $movie = $this->service->store($request->validated());
+        return response()->json($movie->load('genres'));
     }
 
-    public function update(UpdateMovieRequest $request, $id, MovieService $service)
-    {
-        $movie = $service->update($id, $request->validated(), $request->file('poster'));
-        return response()->json($movie);
+    public function update(UpdateMovieRequest $request, Movie $movie) {
+        $movie = $this->service->update($movie, $request->validated());
+        return response()->json($movie->load('genres'));
     }
 
-    public function destroy($id)
-    {
-        Movie::destroy($id);
-        return response()->json(['message' => 'Movie deleted']);
+    public function destroy(Movie $movie) {
+        $movie->delete();
+        return response()->json(['message' => 'Deleted']);
     }
 
-    public function publish($id)
-    {
-        $movie = Movie::findOrFail($id);
-        $movie->is_published = true;
-        $movie->save();
-        return response()->json(['message' => 'Movie published']);
+    public function publish(Movie $movie) {
+        $movie->update(['is_published' => true]);
+        return response()->json(['message' => 'Published']);
+        // не дуже зрозумів що малось на увазі під "публікацією" запису,
     }
 }
